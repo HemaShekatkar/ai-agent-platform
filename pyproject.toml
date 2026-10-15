@@ -14,6 +14,10 @@ dependencies = [
     "typing_extensions",
     "temporalio",
     "langgraph>=1.2.15",
+    # PostgreSQL checkpointer, event inbox and run lock
+    "langgraph-checkpoint-postgres",
+    "psycopg[binary]",
+    "psycopg-pool",
 ]
 
 [project.optional-dependencies]

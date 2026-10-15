@@ -71,10 +71,14 @@ The diagram shows the target architecture. This repository currently implements:
 | Model gateway | `app/gateway.py`, `app/routing/` | capability and data-classification routing, weighted ranking, transient-failure fallback, latency budgets |
 | Structured generation | `app/gateway.py`, `app/models/` | typed Pydantic outputs via `generate_structured` |
 | Validation | `app/agents/onboarding.py`, `app/evals/groundedness.py` | citation validation and an LLM-judge groundedness check |
-| Evaluations | `app/evals/` | exact-match and LLM-judge evaluators, retrieval metrics (recall@k, precision@k, MRR), release gating |
+| Tools and actions | `app/tools/` | tool registry; authorization requiring both the agent's and the user's permission; schema-validated input; human approval bound to one execution ID and one action fingerprint. The executor runs a tool only after every check passes. |
+| Durable execution | `app/workflows/` | Temporal workflow that waits for an approval signal, re-checks the approval's execution ID and fingerprint, and maps tool errors to retryable or non-retryable activity failures |
+| Agent graph | `app/agents/onboarding_graph.py` | LangGraph graph that derives a deterministic execution ID per run and action, starts the Temporal workflow, and pauses with an interrupt until it finishes |
+| Recovery and events | `app/agents/recovery.py`, `event_handler.py`, `event_inbox.py`, `agent_lock.py` | resumes runs from LangGraph checkpoints; workflow-completion events pass through an event inbox (leased claims) and a per-run lock, so duplicate or concurrent events never resume a run twice. In-memory and PostgreSQL implementations. |
+| Evaluations | `app/evals/` | exact-match and LLM-judge evaluators; retrieval metrics (recall@k, precision@k, MRR); agent action evals with safety cases (prompt injection, unauthorized actions, approval bypass); a release gate that returns `PASS`, `BLOCK` or `INSUFFICIENT_EVIDENCE` |
 | Observability | `app/observability/` | spans with parent/child structure and a versioned attribute convention for each stage |
 
-Not yet implemented: hybrid search, reranking, and tools/actions.
+Not yet implemented: hybrid search and reranking. The agent graph's action-proposal step is a deterministic placeholder; it is not yet driven by a model.
 
 All examples and test data are synthetic. Partner names, policies and documents are fictional.
 
@@ -113,6 +117,8 @@ The demo calls a real model and needs an OpenAI API key.
 cp .env.example .env    # then set OPENAI_API_KEY in .env
 python -m app.main
 ```
+
+Agent runs that use PostgreSQL checkpoints read `DATABASE_URL`, which defaults to `postgresql://localhost:5432/agent_platform`.
 
 `.env` is ignored by git. Never commit real credentials.
 
