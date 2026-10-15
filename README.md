@@ -90,10 +90,19 @@ pip install -e ".[dev]"
 
 ### Run the tests
 
-The test suite uses fakes for every model provider. It needs no API key and makes no network calls.
+The test suite uses fakes for every model provider and needs no API key. Workflow tests start a local Temporal dev server; the first run downloads it (cached afterwards), and nothing else leaves your machine.
 
 ```bash
 pytest
+```
+
+### PostgreSQL integration tests (optional)
+
+The event-inbox and agent-lock tests in `tests/agents/test_postgres_*.py` run against a real PostgreSQL database and are skipped unless `TEST_DATABASE_URL` is set, either exported in your shell or as a line in your git-ignored `.env` (see `.env.example`). Point it at a disposable database; the tests apply every migration in `db/` and empty the tables before each test.
+
+```bash
+createdb agent_platform_test
+TEST_DATABASE_URL=postgresql://localhost:5432/agent_platform_test pytest
 ```
 
 ### Run the live demo (optional)

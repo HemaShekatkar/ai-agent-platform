@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import TYPE_CHECKING, Literal, Protocol
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.retrieval.context import ContextResult
 from app.routing.models import DataClassification
@@ -195,23 +195,3 @@ def validate_grounding(
         citation_validation=citation_validation,
         groundedness=groundedness,
     )
-
-
-def validate_groundedness(
-    self,
-    decision: GroundedDecision,
-    context: ContextResult,
-) -> GroundednessResult:
-
-    with self.tracer.start_span("validation.groundedness") as span:
-        result = self.groundedness_evaluator.evaluate(
-            decision,
-            context,
-        )
-
-        record_groundedness_attributes(
-            span=span,
-            result=result,
-        )
-
-        return result

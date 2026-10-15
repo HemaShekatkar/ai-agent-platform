@@ -12,6 +12,8 @@ dependencies = [
     "python-dotenv",
     "pydantic",
     "typing_extensions",
+    "temporalio",
+    "langgraph>=1.2.15",
 ]
 
 [project.optional-dependencies]
@@ -20,6 +22,8 @@ dev = [
     # Tests build httpx.Response objects directly; newer openai releases
     # no longer pull httpx in transitively
     "httpx",
+    # Workflow tests drive Temporal's async test environment
+    "pytest-asyncio",
 ]
 
 [tool.setuptools.packages.find]
@@ -28,3 +32,6 @@ include = ["app*"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+# Fail fast with a clear message when run from an environment that lacks
+# the project's dev dependencies (pip install -e ".[dev]")
+required_plugins = ["pytest-asyncio"]

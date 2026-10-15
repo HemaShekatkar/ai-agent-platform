@@ -3,6 +3,11 @@
 Requires OPENAI_API_KEY (see .env.example). The test suite does not run this.
 """
 
+import os
+
+from app.agents.recovery import resume_agent
+from app.agents.onboarding_graph import build_onboarding_graph
+from app.agents.checkpoint import create_checkpointer
 from dotenv import load_dotenv
 
 from app.models.openai_provider import OpenAIProvider
@@ -52,3 +57,26 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+async def run_agent(runner, registry):
+    # Never hard-code credentials: set DATABASE_URL (see .env.example)
+    db_uri = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://localhost:5432/agent_platform",
+    )
+
+    async with create_checkpointer(db_uri) as checkpointer:
+        graph = build_onboarding_graph(
+            workflow_runner=runner,
+            registry=registry,
+            checkpointer=checkpointer,
+        )
+
+        result = await resume_agent(
+            agent_run_id="agent-run-123",
+            graph=graph,
+            workflow_runner=runner,
+        )
+
+        return result
