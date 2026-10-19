@@ -74,11 +74,18 @@ The diagram shows the target architecture. This repository currently implements:
 | Tools and actions | `app/tools/` | tool registry; authorization requiring both the agent's and the user's permission; schema-validated input; human approval bound to one execution ID and one action fingerprint. The executor runs a tool only after every check passes. |
 | Durable execution | `app/workflows/` | Temporal workflow that waits for an approval signal, re-checks the approval's execution ID and fingerprint, and maps tool errors to retryable or non-retryable activity failures |
 | Agent graph | `app/agents/onboarding_graph.py` | LangGraph graph that derives a deterministic execution ID per run and action, starts the Temporal workflow, and pauses with an interrupt until it finishes |
+| Multi-agent review | `app/agents/multi_agent_graph.py`, `specialists.py` | LangGraph graph that runs metadata, security and contract reviews in parallel and merges them into one readiness decision (`READY_FOR_APPROVAL`, `BLOCKED` or `HUMAN_REVIEW`); each specialist is wrapped with timeouts and bounded retries, and a missing review sends the partner to human review |
+| Review planning | `app/agents/review_planner.py`, `review_freshness.py` | decides whether a cached specialist review can be reused or must be re-run: never reused across partners or specialists, re-run when stale (the policy version, document version or jurisdiction changed) or incomplete |
 | Recovery and events | `app/agents/recovery.py`, `event_handler.py`, `event_inbox.py`, `agent_lock.py` | resumes runs from LangGraph checkpoints; workflow-completion events pass through an event inbox (leased claims) and a per-run lock, so duplicate or concurrent events never resume a run twice. In-memory and PostgreSQL implementations. |
-| Evaluations | `app/evals/` | exact-match and LLM-judge evaluators; retrieval metrics (recall@k, precision@k, MRR); agent action evals with safety cases (prompt injection, unauthorized actions, approval bypass); a release gate that returns `PASS`, `BLOCK` or `INSUFFICIENT_EVIDENCE` |
-| Observability | `app/observability/` | spans with parent/child structure and a versioned attribute convention for each stage |
+| Evaluations | `app/evals/` | exact-match and LLM-judge evaluators; retrieval metrics (recall@k, precision@k, MRR); agent action evals with safety cases (prompt injection, unauthorized actions, approval bypass); a release gate that returns `PASS`, `BLOCK` or `INSUFFICIENT_EVIDENCE`; model comparison on a shared eval set (accuracy, false approvals and rejections, cost, p95 latency) with a model release gate that returns `INSUFFICIENT_EVIDENCE` below minimum case counts and blocks on more high-risk false approvals than the baseline, an accuracy drop beyond the allowed regression (zero by default), or cost and p95 latency increases beyond configurable limits (40% and 60% by default) |
+| Observability | `app/observability/` | spans with parent/child structure and a versioned attribute convention for each stage; agent trace analysis (loops, repeated steps, policy conflicts) and alert policies on iterations, tokens and latency |
+| Authorization | `app/security/authorization.py` | per-request checks for tenant isolation, resource binding and principal permissions; security approval additionally requires a completed review and a granted approval in the workflow state |
+| Load protection | `app/platform/concurrency_limiter.py` | caps concurrent work with a bounded wait queue and rejects excess load with `OverloadedError` instead of queueing indefinitely |
 
-Not yet implemented: hybrid search and reranking. The agent graph's action-proposal step is a deterministic placeholder; it is not yet driven by a model.
+Not yet implemented: hybrid search and reranking. Placeholders still to be replaced:
+
+- The agent graph's action-proposal step is deterministic; it is not yet driven by a model.
+- The security and contract specialists in the multi-agent review are stubs that only check a document is present. They do not perform a real security or contract assessment.
 
 All examples and test data are synthetic. Partner names, policies and documents are fictional.
 
