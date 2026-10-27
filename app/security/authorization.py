@@ -1,6 +1,17 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ProposedAction:
+    tenant_id: str
+    workflow_id: str
+    action_type: str
+    evaluated_policy_version: str
+    idempotency_key: str
+
 
 class Action(str, Enum):
     READ_DOCUMENT = "read_document"

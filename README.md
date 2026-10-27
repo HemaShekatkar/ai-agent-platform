@@ -67,7 +67,9 @@ The diagram shows the target architecture. This repository currently implements:
 |---|---|---|
 | Agent orchestration | `app/agents/onboarding_agent.py` | retrieve → build context → generate → validate → one bounded retry → `HUMAN_REVIEW` |
 | Retrieval | `app/retrieval/retriever.py` | in-memory lexical retrieval with ACL, region, document-type and effective-date filtering |
-| Hybrid retrieval | `app/rag/hybrid_retrieval.py` | reciprocal rank fusion of BM25 and dense result lists, after filtering out documents from other tenants, documents the principal may not read, and superseded, not-yet-effective or expired policies; each document is counted once per list and appears once in the output |
+| Hybrid retrieval | `app/rag/hybrid_retrieval.py` | reciprocal rank fusion of BM25 and dense result lists, after filtering out documents from other tenants, documents the principal may not read, and superseded, not-yet-effective or expired policies; each document is counted once per list and appears once in the output, and excluded documents do not consume rank positions |
+| Reranking and context selection | `app/rag/rerank_policy.py`, `coverage_reranker.py`, `budgeted_context.py` | a policy that decides by query type whether reranking is worth its cost; a coverage-aware reranker that reserves a slot for each required region before filling by relevance; evidence selection under a token budget that favours new coverage per token, weighted by relevance |
+| Retrieval cache | `app/rag/secure_cache.py` | tenant-scoped cache that refuses cross-tenant entries and re-checks the reader's authorization and policy freshness on every read, so stale or revoked evidence is never served |
 | Context builder | `app/retrieval/context.py` | per-request token budgeting with budget-exclusion tracking |
 | Model gateway | `app/gateway.py`, `app/routing/` | capability and data-classification routing, weighted ranking, transient-failure fallback, latency budgets |
 | Structured generation | `app/gateway.py`, `app/models/` | typed Pydantic outputs via `generate_structured` |
@@ -83,7 +85,7 @@ The diagram shows the target architecture. This repository currently implements:
 | Authorization | `app/security/authorization.py` | per-request checks for tenant isolation, resource binding and principal permissions; security approval additionally requires a completed review and a granted approval in the workflow state |
 | Load protection | `app/platform/` | a concurrency limiter that caps concurrent work with a bounded wait queue and rejects excess load with `OverloadedError`; per-tenant admission control under a global limit, so one tenant cannot use all capacity; per-tenant token budgets that reserve estimated tokens before a call and reconcile actual usage afterwards (simplified: single process, fixed budget window) |
 
-Not yet implemented: the BM25 and dense retrievers that feed hybrid retrieval (only the fusion step exists), and reranking. Placeholders still to be replaced:
+Not yet implemented: the BM25 and dense retrievers that feed hybrid retrieval (only the fusion step exists), and a learned or cross-encoder reranker (reranking today is rule-based on coverage and relevance). Placeholders still to be replaced:
 
 - The agent graph's action-proposal step is deterministic; it is not yet driven by a model.
 - The security and contract specialists in the multi-agent review are stubs that only check a document is present. They do not perform a real security or contract assessment.

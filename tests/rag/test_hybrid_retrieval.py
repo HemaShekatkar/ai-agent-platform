@@ -132,3 +132,66 @@ def test_document_ranked_in_both_lists_outranks_single_list_leader():
     )
 
     assert ids(result)[0] == "doc-consensus"
+
+
+def test_excluded_documents_do_not_consume_rank_positions():
+    blocked = make_doc("doc-blocked", tenant_id="tenant-b")
+    bm25_first_eligible = make_doc("doc-a")
+    dense_first_eligible = make_doc("doc-b")
+
+    # doc-a sits behind an excluded document in BM25. Ranks are assigned
+    # after filtering, so it counts as BM25's rank 1 and ties doc-b
+    # (dense rank 1); the tie breaks by ID. If the excluded document kept
+    # its slot, doc-a would score 1/62 and fall behind doc-b's 1/61.
+    result = reciprocal_rank_fusion(
+        bm25_results=[blocked, bm25_first_eligible],
+        dense_results=[dense_first_eligible],
+        ctx=CTX,
+    )
+
+    assert ids(result) == ["doc-a", "doc-b"]
+
+
+def test_ineligible_documents_do_not_consume_rank():
+    ctx = RetrievalContext(
+        tenant_id="tenant-a",
+        principal_id="engineer-1",
+        as_of=date(2026, 10, 20),
+    )
+
+    def make_doc(doc_id, status="ACTIVE"):
+        return Document(
+            id=doc_id,
+            tenant_id="tenant-a",
+            content=doc_id,
+            policy_status=status,
+            effective_date=date(2026, 1, 1),
+            allowed_principals=frozenset({"engineer-1"}),
+        )
+
+    old_policy = make_doc("old", "SUPERSEDED")
+    active_policy = make_doc("active")
+
+    result = reciprocal_rank_fusion(
+        bm25_results=[old_policy, active_policy],
+        dense_results=[],
+        ctx=ctx,
+    )
+
+    assert [doc.id for doc in result] == ["active"]
+
+    # Verify rank normalization through a competing document.
+    competitor = make_doc("competitor")
+
+    result = reciprocal_rank_fusion(
+        bm25_results=[old_policy, active_policy],
+        dense_results=[competitor],
+        ctx=ctx,
+    )
+
+    # Both documents now receive rank-1 contributions.
+    # The deterministic ID tie-breaker puts "active" first.
+    assert [doc.id for doc in result] == [
+        "active",
+        "competitor",
+    ]

@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 from datetime import date
 
@@ -48,16 +47,21 @@ def reciprocal_rank_fusion(
     documents: dict[str, Document] = {}
 
     for results in (bm25_results, dense_results):
+        eligible_results = []
         seen: set[str] = set()
 
-        for rank, doc in enumerate(results, start=1):
+        # Filter first, then assign new ranks, so excluded documents do not
+        # push eligible ones down the list
+        for doc in results:
             if doc.id in seen:
                 continue
+
             seen.add(doc.id)
 
-            if not is_eligible(doc, ctx):
-                continue
+            if is_eligible(doc, ctx):
+                eligible_results.append(doc)
 
+        for rank, doc in enumerate(eligible_results, start=1):
             # A document ID must refer to consistent metadata.
             if doc.id in documents and documents[doc.id] != doc:
                 raise ValueError("Conflicting document metadata")
