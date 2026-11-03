@@ -1,10 +1,10 @@
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Callable
 
 
-class ResolutionStatus(str, Enum):
+class ResolutionStatus(StrEnum):
     COMPLETE = "COMPLETE"
     PARTIAL = "PARTIAL"
     ESCALATE = "ESCALATE"
@@ -72,7 +72,8 @@ def resolve_launch_blocker(
         except (TimeoutError, ConnectionError):
             continue
 
-    if approver is None:
+    # An empty name is not a verified approver
+    if not approver:
         return ResolutionResult(
             status=ResolutionStatus.PARTIAL,
             blocker_description=blocker.description,

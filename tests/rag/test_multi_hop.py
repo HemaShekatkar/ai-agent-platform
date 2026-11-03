@@ -61,6 +61,29 @@ def test_directory_failure_returns_partial_result():
     assert "Assigned approver could not be verified" in result.unresolved
 
 
+def test_empty_approver_name_is_not_verified():
+    attempts = 0
+
+    def blank_directory(_):
+        nonlocal attempts
+        attempts += 1
+        return ""
+
+    result = resolve_launch_blocker(
+        "ONB-123",
+        onboarding,
+        blocker,
+        validate_policy=lambda _: True,
+        get_approver=blank_directory,
+        max_directory_attempts=3,
+    )
+
+    assert attempts == 3
+    assert result.status == ResolutionStatus.PARTIAL
+    assert result.assigned_approver is None
+    assert "Assigned approver could not be verified" in result.unresolved
+
+
 def test_invalid_policy_requires_escalation():
     result = resolve_launch_blocker(
         "ONB-123",
